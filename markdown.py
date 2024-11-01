@@ -1,18 +1,26 @@
 # markdown.py
-def format_list(items, ordered=False):
-    return "\n".join(f"{idx + 1}. {item}" if ordered else f"- {item}" for idx, item in enumerate(items))
+class MarkdownFormatter:
+    def format_heading(self, text, level):
+        return f"{'#' * level} {text}"
 
-def format_paragraph(content):
-    return content
+    def format_paragraph(self, text):
+        return text
 
-def format_table(headers, rows):
-    header_row = "| " + " | ".join(headers) + " |"
-    separator = "| " + " | ".join("---" for _ in headers) + " |"
-    rows_data = "\n".join("| " + " | ".join(row) + " |" for row in rows)
-    return f"{header_row}\n{separator}\n{rows_data}"
+    def format_list(self, item, indent_level):
+        items = item.get("content", [])
+        formatted_items = []
+        for i, list_item in enumerate(items, 1):
+            prefix = f"{'  ' * indent_level}- " if item["type"] == "bullet_list" else f"{'  ' * indent_level}{i}. "
+            formatted_items.append(f"{prefix}{list_item.get('text', '')}")
+        return "\n".join(formatted_items)
 
-def format_text(text):
-    return text
+    def format_check_list_item(self, text, checked, indent_level):
+        checkbox = "[x]" if checked else "[ ]"
+        return f"{'  ' * indent_level}{checkbox} {text}"
 
-def format_link(text, href):
-    return f'[{text}]({href})'
+    def format_link(self, text, href):
+        return f"[{text}]({href})"
+
+    def format_table(self, item):
+        # Implement a markdown-compatible table format
+        return "Table format not yet implemented."

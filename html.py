@@ -1,31 +1,24 @@
 # html.py
-def generate_html_header(title):
-    return f"""<!DOCTYPE html>
-<html>
-<head>
-    <title>{title}</title>
-</head>
-<body>
-"""
+class HtmlFormatter:
+    def format_heading(self, text, level):
+        return f"<h{level}>{text}</h{level}>"
 
-def generate_html_footer():
-    return "</body>\n</html>"
+    def format_paragraph(self, text):
+        return f"<p>{text}</p>"
 
-def format_list(items, ordered=False):
-    tag = 'ol' if ordered else 'ul'
-    list_items = "\n".join(f"<li>{item}</li>" for item in items)
-    return f"<{tag}>\n{list_items}\n</{tag}>"
+    def format_list(self, item, indent_level):
+        tag = "ul" if item["type"] == "bullet_list" else "ol"
+        items = item.get("content", [])
+        formatted_items = [f"<li>{list_item.get('text', '')}</li>" for list_item in items]
+        return f"{'  ' * indent_level}<{tag}>\n" + "\n".join(formatted_items) + f"\n{'  ' * indent_level}</{tag}>"
 
-def format_paragraph(content):
-    return f"<p>{content}</p>"
+    def format_check_list_item(self, text, checked, indent_level):
+        checkbox = '<input type="checkbox" checked>' if checked else '<input type="checkbox">'
+        return f"{'  ' * indent_level}<li>{checkbox} {text}</li>"
 
-def format_table(headers, rows):
-    header_html = "<tr>" + "".join(f"<th>{header}</th>" for header in headers) + "</tr>"
-    rows_html = "\n".join("<tr>" + "".join(f"<td>{cell}</td>" for cell in row) + "</tr>" for row in rows)
-    return f"<table>\n{header_html}\n{rows_html}\n</table>"
+    def format_link(self, text, href):
+        return f'<a href="{href}">{text}</a>'
 
-def format_text(text):
-    return text
-
-def format_link(text, href):
-    return f'<a href="{href}">{text}</a>'
+    def format_table(self, item):
+        # Implement an HTML-compatible table format
+        return "Table format not yet implemented."

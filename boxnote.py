@@ -1,49 +1,81 @@
-# boxnote.py
 import json
-from html import format_list as html_list, format_paragraph as html_paragraph, format_table as html_table, format_link as html_link, format_text as html_text
-from markdown import format_list as md_list, format_paragraph as md_paragraph, format_table as md_table, format_link as md_link, format_text as md_text
+from markdown import MarkdownFormatter
+from html import HtmlFormatter
 
 class BoxNoteParser:
-    def __init__(self, output_format):
-        self.output_format = output_format
+    def parse(self, content, output_format):
+        try:
+            data = json.loads(content)
+            formatter = None
 
-    def parse_json(self, json_string):
-        data = json.loads(json_string)
-        parsed_content = []
+            if output_format == 'markdown':
+                formatter = MarkdownFormatter()
+            elif output_format == 'html':
+                formatter = HtmlFormatter()
+            else:
+                return content  # テキストの場合はそのまま出力
 
-        for item in data.get("content", []):
+            if 'content' in data.get('doc', {}):
+                parsed_output = self._process_content(data['doc']['content'], formatter)
+                return parsed_output
+            else:
+                return "Error: No 'content' found in JSON."
+        except json.JSONDecodeError as e:
+            return f"Invalid JSON: {e}"
+
+    def _process_content(self, content_list, formatter, indent_level=0):
+        output = []
+        for item in content_list:
             item_type = item.get("type")
-            if item_type == "text":
+
+            if item_type == "heading":
+                level = item.get("attrs", {}).get("level", 1)
+                heading_text = self._extract_text(item.get("content", []))
+                output.append(formatter.format_heading(heading_text, level))
+
+            elif item_type == "paragraph":
+                paragraph_text = self._extract_text(item.get("content", []))
+                output.append(formatter.format_paragraph(paragraph_text))
+
+            elif item_type == "ordered_list":
+                output.append(formatter.format_list(item, indent_level))
+
+            elif item_type == "bullet_list":
+                output.append(formatter.format_list(item, indent_level))
+
+            elif item_type == "check_list":
+                for check_item in item.get("content", []):
+                    output.append(self._process_content([check_item], formatter, indent_level))
+
+            elif item_type == "check_list_item":
+                is_checked = item.get("attrs", {}).get("checked", False)
+                item_text = self._extract_text(item.get("content", []))
+                output.append(formatter.format_check_list_item(item_text, is_checked, indent_level))
+
+            elif item_type == "table":
+                table_output = formatter.format_table(item)
+                output.append(table_output)
+
+            elif item_type == "text":
                 text = item.get("text", "")
-                if item.get("marks"):
+                if "marks" in item:
                     for mark in item["marks"]:
                         if mark.get("type") == "link":
                             href = mark.get("attrs", {}).get("href", "")
-                            text = self._format_link(text, href)
-                parsed_content.append(self._format_text(text))
-            elif item_type == "paragraph":
-                parsed_content.append(self._format_paragraph(item.get("content", "")))
-            elif item_type in ["check_list", "list"]:
-                items = [i.get("value", "") for i in item.get("items", [])]
-                parsed_content.append(self._format_list(items, ordered=(item_type == "list")))
-            elif item_type == "table":
-                headers = item.get("headers", [])
-                rows = item.get("rows", [])
-                parsed_content.append(self._format_table(headers, rows))
+                            text = formatter.format_link(text, href)
+                output.append(text)
 
-        return parsed_content
+            # 再帰的にネストされた content を処理
+            if "content" in item:
+                nested_content = self._process_content(item["content"], formatter, indent_level + 1)
+                output.append(nested_content)
 
-    def _format_text(self, text):
-        return html_text(text) if self.output_format == "html" else md_text(text)
+        return "\n".join(output)
 
-    def _format_paragraph(self, content):
-        return html_paragraph(content) if self.output_format == "html" else md_paragraph(content)
-
-    def _format_list(self, items, ordered=False):
-        return html_list(items, ordered) if self.output_format == "html" else md_list(items, ordered)
-
-    def _format_table(self, headers, rows):
-        return html_table(headers, rows) if self.output_format == "html" else md_table(headers, rows)
-
-    def _format_link(self, text, href):
-        return html_link(text, href) if self.output_format == "html" else md_link(text, href)
+    def _extract_text(self, content_list):
+        text_parts = []
+        for content in content_list:
+            if content.get("type") == "text":
+                text = content.get("text", "")
+                text_parts.append(text)
+        return "".join(text_parts)
